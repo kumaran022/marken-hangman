@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galgenmännchen: Automarken</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px 0;
+        }
+
+        .game-container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        h1 {
+            color: #1c1e21;
+            margin-bottom: 10px;
+        }
+
+        /* --- NEU: Styling für die Zeichenfläche --- */
+        #hangman-canvas {
+            margin-bottom: 15px;
+            max-width: 100%;
+            height: auto;
+        }
+
+        #word-display {
+            font-size: 2.5em;
+            letter-spacing: 10px;
+            margin: 20px 0;
+            color: #1877f2;
+            font-weight: bold;
+            min-height: 50px;
+        }
+
+        #keyboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .key {
+            font-size: 1.2em;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #e4e6eb;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .key:hover {
+            background-color: #dcdde1;
+        }
+
+        .key:disabled {
+            background-color: #ccd0d5;
+            color: #8a8d91;
+            cursor: not-allowed;
+        }
+
+        #game-status {
+            font-size: 1.2em;
+            font-weight: bold;
+            min-height: 30px;
+        }
+        
+        #logo-container {
+            margin-top: 25px;
+            min-height: 100px;
+        }
+
+        #logo-container.hidden {
+            display: none;
+        }
+
+        #brand-logo {
+            max-height: 100px;
+            max-width: 100%;
+        }
+
+        #reset-button {
+            font-size: 1em;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            background-color: #1877f2;
+            color: white;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+        }
+
+        #reset-button:hover {
+            background-color: #166fe5;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <h1>Galgenmännchen: Finde die Automarke!</h1>
+        
+        <!-- NEU: Die Zeichenfläche für den Galgen -->
+        <canvas id="hangman-canvas" width="250" height="280"></canvas>
+        
+        <div id="word-display"></div>
+        <div id="keyboard"></div>
+        <div id="game-status"></div>
+        
+        <div id="logo-container" class="hidden">
+            <img id="brand-logo" src="" alt="Automarken-Logo">
+        </div>
+        
+        <button id="reset-button">Neues Spiel</button>
+    </div>
+
+    <script>
+        const wordList = [
+            { name: "AUDI", logo: "https://upload.wikimedia.org/wikipedia/commons/9/92/Audi-Logo_2016.svg" },
+            { name: "BMW", logo: "https://upload.wikimedia.org/wikipedia/commons/4/44/BMW.svg" },
+            { name: "FORD", logo: "https://upload.wikimedia.org/wikipedia/commons/3/3e/Ford_logo_flat.svg" },
+            { name: "HONDA", logo: "https://upload.wikimedia.org/wikipedia/commons/3/38/Honda.svg" },
+            { name: "HYUNDAI", logo: "https://upload.wikimedia.org/wikipedia/commons/e/e3/Hyundai_logo_2.svg" },
+            { name: "JAGUAR", logo: "https://upload.wikimedia.org/wikipedia/de/d/d1/Jaguar-Logo.svg" },
+            { name: "KIA", logo: "https://upload.wikimedia.org/wikipedia/commons/4/47/Kia_logo.svg" },
+            { name: "MAZDA", logo: "https://upload.wikimedia.org/wikipedia/commons/e/e5/Mazda_logo_-_transparent.svg" },
+            { name: "MERCEDES", logo: "https://upload.wikimedia.org/wikipedia/commons/9/90/Mercedes-Benz_Logo_2010.svg" },
+            { name: "NISSAN", logo: "https://upload.wikimedia.org/wikipedia/commons/6/67/Nissan-logo.svg" },
+            { name: "OPEL", logo: "https://upload.wikimedia.org/wikipedia/commons/d/d1/Opel_logo_2017.svg" },
+            { name: "PORSCHE", logo: "https://upload.wikimedia.org/wikipedia/de/b/b3/Porsche_Wappen_Logo.svg" },
+            { name: "RENAULT", logo: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Renault_logo.svg" },
+            { name: "SKODA", logo: "https://upload.wikimedia.org/wikipedia/commons/1/19/Skoda_Auto_logo.svg" },
+            { name: "TESLA", logo: "https://upload.wikimedia.org/wikipedia/commons/e/e8/Tesla_logo.png" },
+            { name: "TOYOTA", logo: "https://upload.wikimedia.org/wikipedia/commons/5/5e/Toyota_EU.svg" },
+            { name: "VOLVO", logo: "https://upload.wikimedia.org/wikipedia/commons/2/29/Volvo-Iron-Mark-Black.svg" },
+            { name: "VOLKSWAGEN", logo: "https://upload.wikimedia.org/wikipedia/commons/0/08/Volkswagen_logo_2019.svg" }
+        ];
+
+        // Elemente aus dem HTML holen
+        const wordDisplay = document.getElementById('word-display');
+        const keyboardDiv = document.getElementById('keyboard');
+        const gameStatus = document.getElementById('game-status');
+        const resetButton = document.getElementById('reset-button');
+        const logoContainer = document.getElementById('logo-container');
+        const brandLogo = document.getElementById('brand-logo');
+        
+        // NEU: Canvas und Zeichen-Kontext holen
+        const canvas = document.getElementById('hangman-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Spielvariablen
+        let currentWordObject = null;
+        let secretWord = '';
+        let guessedWord = [];
+        let wrongGuesses = 0;
+        const maxWrongGuesses = 7;
+
+        // --- NEUE ZEICHENFUNKTIONEN ---
+
+        // Wischt die Leinwand sauber
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Zeichnet den nächsten Teil des Galgens/Männchens
+        function drawHangmanPart(part) {
+            ctx.strokeStyle = '#333'; // Farbe der Linien
+            ctx.lineWidth = 4;       // Dicke der Linien
+            ctx.beginPath();
+
+            switch (part) {
+                case 1: // Basis
+                    ctx.moveTo(20, 260);
+                    ctx.lineTo(230, 260);
+                    break;
+                case 2: // Vertikaler Pfosten
+                    ctx.moveTo(70, 260);
+                    ctx.lineTo(70, 20);
+                    break;
+                case 3: // Horizontaler Balken & Stütze
+                    ctx.lineTo(180, 20);
+                    ctx.moveTo(70, 60);
+                    ctx.lineTo(110, 20);
+                    break;
+                case 4: // Seil & Kopf
+                    ctx.lineTo(180, 60); // Seil
+                    ctx.stroke(); // Seil zeichnen, bevor wir den Kreis anfangen
+                    ctx.beginPath();
+                    ctx.arc(180, 80, 20, 0, Math.PI * 2); // Kopf
+                    break;
+                case 5: // Körper
+                    ctx.moveTo(180, 100);
+                    ctx.lineTo(180, 180);
+                    break;
+                case 6: // Arme
+                    ctx.moveTo(180, 120);
+                    ctx.lineTo(140, 150); // Linker Arm
+                    ctx.moveTo(180, 120);
+                    ctx.lineTo(220, 150); // Rechter Arm
+                    break;
+                case 7: // Beine
+                    ctx.moveTo(180, 180);
+                    ctx.lineTo(140, 220); // Linkes Bein
+                    ctx.moveTo(180, 180);
+                    ctx.lineTo(220, 220); // Rechtes Bein
+                    break;
+            }
+            ctx.stroke(); // Zeichnet den aktuellen Strich
+        }
+        
+        // --- Ende der neuen Zeichenfunktionen ---
+
+        function setupGame() {
+            wrongGuesses = 0;
+            currentWordObject = wordList[Math.floor(Math.random() * wordList.length)];
+            secretWord = currentWordObject.name;
+            guessedWord = Array(secretWord.length).fill('_');
+            
+            logoContainer.classList.add('hidden');
+            clearCanvas(); // NEU: Leinwand für neues Spiel säubern
+            
+            updateDisplay();
+            createKeyboard();
+        }
+
+        function createKeyboard() {
+            keyboardDiv.innerHTML = '';
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            
+            for (const letter of alphabet) {
+                const button = document.createElement('button');
+                button.className = 'key';
+                button.textContent = letter;
+                button.onclick = () => handleGuess(letter);
+                keyboardDiv.appendChild(button);
+            }
+        }
+
+        function handleGuess(letter) {
+            const buttons = document.querySelectorAll('.key');
+            buttons.forEach(button => {
+                if (button.textContent === letter) {
+                    button.disabled = true;
+                }
+            });
+
+            if (secretWord.includes(letter)) {
+                for (let i = 0; i < secretWord.length; i++) {
+                    if (secretWord[i] === letter) {
+                        guessedWord[i] = letter;
+                    }
+                }
+            } else {
+                wrongGuesses++;
+                drawHangmanPart(wrongGuesses); // NEU: Zeichnet den nächsten Teil
+            }
+            
+            updateDisplay();
+            checkGameEnd();
+        }
+
+        function updateDisplay() {
+            wordDisplay.textContent = guessedWord.join(' ');
+            gameStatus.textContent = `Fehlversuche: ${wrongGuesses} / ${maxWrongGuesses}`;
+        }
+
+        function checkGameEnd() {
+            if (!guessedWord.includes('_')) {
+                gameStatus.textContent = `Super! Du hast es erraten!`;
+                disableKeyboard();
+                brandLogo.src = currentWordObject.logo;
+                logoContainer.classList.remove('hidden');
+            } else if (wrongGuesses >= maxWrongGuesses) {
+                gameStatus.textContent = `Schade! Das richtige Wort war "${secretWord}".`;
+                disableKeyboard();
+            }
+        }
+
+        function disableKeyboard() {
+            const buttons = document.querySelectorAll('.key');
+            buttons.forEach(button => button.disabled = true);
+        }
+
+        resetButton.addEventListener('click', setupGame);
+
+        setupGame();
+    </script>
+
+</body>
+</html>
